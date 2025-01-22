@@ -3,3 +3,31 @@ proxies
 accounts.json
 config.py
 test.py
+
+
+# Лог-файлы
+*.log
+*.out
+*.err
+
+# Конфигурационные файлы окружения
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.sqlite3
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
