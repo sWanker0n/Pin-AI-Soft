@@ -3,5 +3,3 @@ proxies
 accounts.json
 config.py
 test.py
-.idea
-*__pycache__
