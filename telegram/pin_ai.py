@@ -15,6 +15,7 @@ from utils.data_manager import Data_Manager
 end_point = "https://prod-api.pinai.tech/"
 auth_api = f"{end_point}passport/login/telegram"
 home_api = f"{end_point}home"
+farm_api = f"{end_point}home/collect"
 
 class PinAi:
     def __init__(self, session_name):
@@ -28,6 +29,10 @@ class PinAi:
         self.scraper = self.log_data[1]
         self.auth_token = ''
         self.access_token = ''
+        self.points = ""
+        self.level = ""
+        self.coins = ""
+        self.check_in = ""
 
 
     def get_tg_web_data(self):
@@ -118,13 +123,69 @@ class PinAi:
 
     def home(self):
         response = self.scraper.get(url=home_api, headers=headers).json()
-        ll.debug(response)
-        points = response.get('pin_points_in_number')
-        level = response.get('current_model').get('current_level')
-        ll.debug(points)
-        ll.debug(level)
-        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='points', value=points)
-        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='level', value=level)
+        self.points = response.get('pin_points_in_number')
+        self.level = response.get('current_model').get('current_level')
+        self.coins = response.get('total_coins')[0].get('count')
+        self.check_in = response.get("is_today_checkin")
+        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='points', value=self.points)
+        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='level', value=self.level)
+        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='coins_left', value=self.coins)
+        self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='is_today_checkin', value=self.check_in)
+
+    def farm(self):
+        if self.coins >= 10:
+            ll.info(f"FARM | Session {self.session_name} | have {self.coins} coins to farm")
+            i = 0
+            while True:
+                i = i + 1
+                if self.coins <= 50 and self.coins != 0:
+                    ll.info(f"FARM | Session {self.session_name} | № {i} | will farm {self.coins} coins")
+                    time.sleep(random.randint(3, 5))
+                    data = [{
+                        "type": "Telegram",
+                        "count": self.coins
+                    }]
+                    response = self.scraper.post(url=farm_api, json=data, headers=headers)
+                    if response.status_code == 200:
+                        ll.success(f"FARM | Session {self.session_name} | № {i} | received {response.json().get('pin_points_in_number') - self.points} pin_points")
+                        time.sleep(random.randint(1, 5))
+                        self.home()
+                    else:
+                        ll.error(f"FARM | Session {self.session_name} | № {i} | received {response.status_code} status code")
+                        return False
+                    return True
+                elif self.coins > 50:
+                    a = random.randint(1, 10)
+                    if a >= 8:
+                        count = random.randint(1, 50)
+                    elif a >=5 and a < 8 and self.coins <= 100:
+                        count = random.randint(50, self.coins)
+                    elif a >=5 and a < 8 and self.coins <= 200:
+                        count = random.randint(50, self.coins - 50)
+                    elif a == 1:
+                        count = self.coins
+                        time.sleep(8)
+                    else:
+                        count = 50
+                    ll.info(f"FARM | Session {self.session_name} | № {i} | will farm {count} coins")
+                    time.sleep(random.randint(3, 5))
+                    data = [{
+                        "type": "Telegram",
+                        "count": count
+                    }]
+                    response = self.scraper.post(url=farm_api, json=data, headers=headers)
+                    if response.status_code == 200:
+                        ll.success(f"FARM | Session {self.session_name} | № {i} | received {response.json().get('pin_points_in_number') - self.points} pin_points")
+                        time.sleep(random.randint(1, 5))
+                        self.home()
+                    else:
+                        ll.error(f"FARM | Session {self.session_name} | № {i} | received {response.status_code} status code")
+                        return False
+                time.sleep(random.randint(1, 30))
+        else:
+            ll.warning(f"FARM | Session {self.session_name} | Dont have at least 10 coints to start module FARM")
+            return False
+
 
 
 
@@ -161,6 +222,9 @@ class PinAi:
         if status:
             if task == "farm":
                 self.home()
+                status = self.farm()
+                if status:
+                    ll.success(f"Session {self.session_name} | FARM finished")
             elif task == 'level_up':
                 self.home()
                 ll.info('level up')

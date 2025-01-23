@@ -39,7 +39,6 @@ def login_to_session(session_name):
 
             me = app.get_me()
             if me:
-                ll.info(f"Logged in as {me.first_name} ({me.username})")
                 return app, scraper
             else:
                 print('Cant loggin')
