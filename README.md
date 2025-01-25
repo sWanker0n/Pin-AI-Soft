@@ -10,7 +10,7 @@ git clone https://github.com/sWanker0n/pin_ai_soft
 
 cd pin_ai_soft
 
-pip install requirements
+pip install -r requirements.txt
 
 python main.py
 
