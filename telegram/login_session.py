@@ -1,7 +1,6 @@
 import time
 
 from pyrogram import Client
-from pyrogram.errors import SessionPasswordNeeded
 from config import settings
 from utils.scraper import Scraper
 from utils.data_manager import Data_Manager
@@ -9,7 +8,7 @@ import time
 from loguru import logger as ll
 
 
-def login_to_session(session_name):
+async def login_to_session(session_name):
     time.sleep(2)
     SESSION_NAME = session_name
     if Data_Manager().check_session(SESSION_NAME) == False:
@@ -30,14 +29,14 @@ def login_to_session(session_name):
     app = Client(SESSION_NAME, api_id=settings.API_ID, api_hash=settings.API_HASH, proxy=PROXY, workdir="telegram/sessions/")
 
     # Start the client
-    with app:
+    async with app:
         try:
             if not app.is_connected:
-                app.connect()
+                await app.connect()
 
-            ll.success("Connected successfully!")
+            ll.success("Connected to telegram successfully!")
 
-            me = app.get_me()
+            me = await app.get_me()
             if me:
                 return app, scraper
             else:

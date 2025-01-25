@@ -46,18 +46,18 @@ async def create_session():
     app = Client(SESSION_NAME, api_id=settings.API_ID, api_hash=settings.API_HASH, proxy=PROXY,
                  workdir="telegram/sessions/")
 
-    try:
-        async with app:
-            if not await app.is_connected():
-                await app.connect()
-            print("Connected successfully!")
-            me = await app.get_me()
-            if me:
-                print(f"Logged in as {me.first_name} ({me.username})")
-                status = data.add_new_tg_session(session_name=SESSION_NAME, session_pass='Gennady',
-                                                 session_proxy=acc.proxy)
-            else:
-                print('Can\'t log in.')
-    except Exception as e:
-        print(f"An error occurred: {e}")
+
+    async with app:
+        if not app.is_connected:
+            await app.connect()
+        print("Connected successfully!")
+        me = await app.get_me()
+        if me:
+            print(f"Logged in as {me.first_name} ({me.username})")
+            status = data.add_new_tg_session(session_name=SESSION_NAME, session_pass='Gennady',
+                                             session_proxy=acc.proxy)
+        else:
+            print('Can\'t log in.')
+    # except Exception as e:
+    #     print(f"An error occurred: {e}")
 

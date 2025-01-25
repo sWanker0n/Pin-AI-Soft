@@ -104,7 +104,10 @@ class Data_Manager:
         if session_name in list(data.keys()):
             if data.get(session_name).get(var) != value:
                 with open(self.accounts_path, 'w') as file:
-                    ll.info(f"For session {session_name} changed | {var} | from | {data.get(session_name).get(var)} | to | {value}")
+                    if var == 'access_token' or var == 'refresh_token':
+                        ll.info(f"For session {session_name} changed | {var} | from | {data.get(session_name).get(var)[:6]}...{data.get(session_name).get(var)[-3:]} | to | {value[:6]}...{value[-3:]}")
+                    else:
+                        ll.info(f"For session {session_name} changed | {var} | from | {data.get(session_name).get(var)} | to | {value}")
                     data[session_name][var] = value
                     data = json.dumps(data, indent=4)
                     file.write(data)

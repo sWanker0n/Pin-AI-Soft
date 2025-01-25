@@ -34,10 +34,11 @@ class Scraper():
         for i in range(1, 6):
             p = f'{self.proxy_username}:{self.proxy_password}@{self.proxy_domain}:{self.proxy_port}'
             proxy = {
-                'socks5': f'socks5://{p}'
+                'http': f'socks5://{p}',
+                'https': f'socks5://{p}'
             }
             try:
-                self.s.proxies.update(proxy)
+                self.s.proxies = proxy
                 response = self.s.get(url=url)
                 if response.status_code == 200:
                     ll.info(f'proxy ip: {response.json().get("ip")}')
