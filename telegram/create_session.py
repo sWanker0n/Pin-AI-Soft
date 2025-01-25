@@ -10,6 +10,7 @@ import os
 
 import asyncio
 from pyrogram import Client
+from pathlib import Path
 from config import settings
 from utils.scraper import Scraper
 from utils.data_manager import Data_Manager
@@ -28,6 +29,8 @@ async def create_session():
     # Asynchronously get input from the user
     SESSION_NAME = await asyncio.to_thread(input, "Please enter your session name: ")
     SESSION_NAME_FILE = SESSION_NAME + ".session"
+    directory = Path("telegram/sessions")
+    directory.mkdir(parents=True, exist_ok=True)
     all_files_and_dirs = os.listdir("telegram/sessions")
     files = [f for f in all_files_and_dirs if os.path.isfile(os.path.join("telegram/sessions", f))]
 
