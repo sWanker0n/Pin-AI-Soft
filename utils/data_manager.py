@@ -5,7 +5,7 @@ from utils.agents import generate_random_user_agent
 
 class Data_Manager:
     def __init__(self):
-        self.proxies_path = 'data/proxies'
+        self.proxies_path = 'data/proxies.txt'
         self.accounts_path = 'data/accounts.json'
     def write_to_file_txt(self, file_path, data):
         file = open(file_path, "w")
@@ -131,6 +131,38 @@ class Data_Manager:
                     return value
             else:
                 return None
+        else:
+            ll.warning(f"{session_name} is not in accounts list")
+            return False
+
+
+    def change_enter_tasks_data_for_existing_pinai_accounts(self, session_name, task, value):
+        data = self.get_data_from_file_json(self.accounts_path)
+        if session_name in list(data.keys()):
+            try:
+                if data.get(session_name).get('pin_ai').get('enter_tasks').get(task) != value:
+                    with open(self.accounts_path, 'w') as file:
+                        ll.info(f"For session {session_name} changed | {task} | from | {data.get(session_name).get('pin_ai').get('enter_tasks').get(task)} | to | {value}")
+                        data[session_name]['pin_ai']['enter_tasks'][task] = value
+                        data = json.dumps(data, indent=4)
+                        file.write(data)
+                        return value
+                else:
+                    return None
+            except AttributeError:
+                with open(self.accounts_path, 'w') as file:
+                    try:
+                        data[session_name]['pin_ai']['enter_tasks'][task] = value
+                    except KeyError as err:
+                        if str(err) == "'enter_tasks'":
+                            ll.info(1)
+                            data[session_name]['pin_ai']['enter_tasks'] = {"Follow us on X": False, "Join our Telegram group": False, 'Join our Discord server': False}
+                            data[session_name]['pin_ai']['enter_tasks'][task] = value
+                    ll.info(f"For session {session_name} changed | {task} | from | None | to | {value}")
+                    data = json.dumps(data, indent=4)
+                    file.write(data)
+                    return value
+
         else:
             ll.warning(f"{session_name} is not in accounts list")
             return False

@@ -18,6 +18,7 @@ auth_api = f"{end_point}passport/login/telegram"
 home_api = f"{end_point}home"
 farm_api = f"{end_point}home/collect"
 check_in_api = f"{end_point}task/1001/v1/complete"
+task_v4_list_api = f'{end_point}task/v4/list'
 
 class PinAi:
     def __init__(self, session_name):
@@ -25,7 +26,7 @@ class PinAi:
         self.data_manager = Data_Manager()
         self.peer = "hi_PIN_bot"
         self.short_name = 'app'
-        self.ref_link = 'pDV5RYv'
+        self.ref_link = settings.REF_CODE
         self.log_data = ""
         self.tg_client = ""
         self.scraper = ""
@@ -45,7 +46,7 @@ class PinAi:
                     async for message in self.tg_client.get_chat_history(self.peer):
                         if (message.text and message.text.startswith('/start')) or (message.caption and message.caption.startswith('/start')):
                             start_command_found = True
-                            ll.info(f"{self.session_name} | already have messages with PinAI bot")
+                            ll.info(f"Session {self.session_name} | already have messages with PinAI bot")
                             break
                     if not start_command_found:
                         await self.tg_client.send_message(self.peer, "/start")
@@ -84,9 +85,9 @@ class PinAi:
         except Exception as err:
             ll.error(err)
 
-    async def login(self, retry=1):
+    async def login(self, retry=3):
         if retry == 0:
-            return None
+            return False
         ua = self.data_manager.get_useragent(session_name=self.session_name)
         auth_headers["User-Agent"] = ua
         chrome_ver = fetch_version(auth_headers['User-Agent'])
@@ -129,6 +130,156 @@ class PinAi:
             self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='level', value=self.level)
             self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='coins_left', value=self.coins)
             self.data_manager.change_data_for_existing_pinai_accounts(session_name=self.session_name, var='is_today_checkin', value=self.check_in)
+
+    def v4_list(self, retry=2, task_name=None):
+        if retry == 0:
+            return False
+        if task_name == None:
+            try:
+                with self.scraper.get(url=task_v4_list_api, headers=headers) as response:
+                    if response.status_code == 200:
+                        tasks = response.json().get('tasks')
+                        for task in tasks:
+                            self.data_manager.change_enter_tasks_data_for_existing_pinai_accounts(session_name=self.session_name, task=task.get('task_name'), value=task.get('is_complete'))
+                        return tasks
+                    else:
+                        ll.warning(f"{self.session_name} | Failed to get v4_list data | Status code {response.status_code}, retry in 3-5 seconds")
+                        time.sleep(random.randint(3, 5))
+                        return self.v4_list(retry - 1)
+
+            except Exception as err:
+                ll.error(f"Session {self.session_name} | {err}")
+                return False
+        else:
+            try:
+                with self.scraper.get(url=task_v4_list_api, headers=headers) as response:
+                    if response.status_code == 200:
+                        tasks = response.json().get('tasks')
+                        for task in tasks:
+                            if task.get('task_name') == task_name:
+                                self.data_manager.change_enter_tasks_data_for_existing_pinai_accounts(
+                                    session_name=self.session_name, task=task.get('task_name'),
+                                    value=task.get('is_complete'))
+                                return task
+                        ll.error(f"Cant find task in response with name {task_name}")
+                        return False
+                    else:
+                        ll.warning(
+                            f"{self.session_name} | Failed to get v4_list data | Status code {response.status_code}, retry in 3-5 seconds")
+                        time.sleep(random.randint(3, 5))
+                        return self.v4_list(retry - 1)
+
+            except Exception as err:
+                ll.error(f"Session {self.session_name} | {err}")
+                return False
+
+
+    async def complete_enter_task(self, task, retry=2):
+        if retry == 0:
+            return False
+        try:
+            url = f"{end_point}task/{task.get('task_id')}/v2/complete"
+            with self.scraper.post(url=url, headers=headers, json={}) as response:
+                if response.status_code == 200:
+                    if response.json().get('status') == "success":
+                        return True
+                    else:
+                        ll.warning(f'Session {self.session_name} | Dont receive success in response | received: {response.json()} | will retry in 5 sec')
+                        await asyncio.sleep(random.randint(1, 5))
+                        return await self.complete_enter_task(retry - 1)
+                else:
+                    ll.warning(f'Session {self.session_name} | received: {response.status_code} status code |  will retry in 5 sec')
+                    await asyncio.sleep(random.randint(1, 5))
+                    return await self.complete_enter_task(retry - 1)
+        except Exception as err:
+            ll.error(f"Session {self.session_name} | {err} |  will retry in 5 sec")
+            await asyncio.sleep(random.randint(1, 5))
+            return await self.complete_enter_task(retry - 1)
+
+
+    async def claim_enter_task(self, task, retry=2):
+        if retry == 0:
+            return False
+        try:
+            url = f"{end_point}task/{task.get('task_id')}/claim"
+            with self.scraper.post(url=url, headers=headers, json={}) as response:
+                if response.status_code == 200:
+                    if response.json().get('status') == "success":
+                        return True
+                    else:
+                        ll.warning(f'Session {self.session_name} | Dont receive seccess in response | received: {response.json()} | will retry in 5 sec')
+                        await asyncio.sleep(random.randint(1, 5))
+                        return await self.claim_enter_task(retry - 1)
+                else:
+                    ll.warning(f'Session {self.session_name} | received: {response.status_code} status code | will retry in 5 sec')
+                    await asyncio.sleep(random.randint(1, 5))
+                    return await self.claim_enter_task(retry - 1)
+        except Exception as err:
+            ll.error(f"Session {self.session_name} | {err} | will retry in 5 sec")
+            await asyncio.sleep(random.randint(1, 5))
+            return await self.claim_enter_task(retry - 1)
+
+
+    async def enter_tasks(self, ):
+            tasks = self.v4_list()
+            module_status = False
+            if tasks:
+                try:
+                    tasks = [x for x in tasks if x.get('is_complete') == False]
+                    need_to_claim_tasks = [x for x in tasks if x.get('can_claim') == True]
+                    need_to_complete_tasks = [x for x in tasks if x.get('can_claim') == False]
+                    if len(need_to_complete_tasks) == 0 and len(need_to_claim_tasks) == 0:
+                        ll.warning(f"Session {self.session_name} | don't have tasks to make or claim")
+                        return module_status
+
+                    for task in need_to_complete_tasks:
+                        if task.get('task_name') in ('Follow us on X', "Join our Discord server"):
+                            ll.info(f"Session {self.session_name} | Try to complete task {task.get('task_name')}...")
+                            status = await self.complete_enter_task(task=task)
+                            await asyncio.sleep(random.randint(15, 30))
+                            if status:
+                                task = self.v4_list(task_name=task.get('task_name'))
+                                if task.get('can_claim') == True:
+                                    status = await self.claim_enter_task(task=task)
+                                    if status:
+                                        task = self.v4_list(task_name=task.get('task_name'))
+                                        if task.get('is_complete') == True:
+                                            ll.success(f"Session {self.session_name} | Complete task {task.get('task_name')}")
+                                            self.home()
+                                            module_status = True
+                                        else:
+                                            ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+                                    else:
+                                        ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+                                else:
+                                    ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+                            else:
+                                ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+
+                    if len(need_to_claim_tasks) != 0:
+                        for task in need_to_claim_tasks:
+                            status = await self.claim_enter_task(task=task)
+                            if status:
+                                task = self.v4_list(task_name=task.get('task_name'))
+                                if task.get('is_complete') == True:
+                                    ll.success(f"Session {self.session_name} | Complete task {task.get('task_name')}")
+                                    self.home()
+                                    module_status = True
+                                else:
+                                    ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+                            else:
+                                ll.error(f"Session {self.session_name} | Will skip task {task.get('task_name')}")
+                    if module_status == False:
+                        ll.warning(f"Session {self.session_name} | don't have tasks that can make or claim")
+                        return module_status
+
+                except Exception as err:
+                    ll.error(f"Session {self.session_name} | {err}")
+                    return False
+            else:
+                ll.error(f"Session {self.session_name} | Dont received tasks")
+                return False
+
 
     async def run(self):
         self.log_data = await login_to_session(session_name=self.session_name)
@@ -212,7 +363,6 @@ class PinAi:
                     return True
         else:
             ll.warning(f"FARM | Session {self.session_name} | Don't have at least 10 coins to start module FARM")
-            print("----------------------------------------------------------------------------")
             return False
 
     async def check_in_task(self):
@@ -233,7 +383,6 @@ class PinAi:
                 return False
         else:
             ll.warning(f"CHECK IN | Session {self.session_name} | already sent check-in")
-            print("----------------------------------------------------------------------------")
 
     async def start(self, task):
         status = await self.run()
@@ -245,17 +394,28 @@ class PinAi:
                     ll.success(f"Session {self.session_name} | module FARM finished")
                     print("----------------------------------------------------------------------------")
                     await asyncio.sleep(random.randint(settings.SLEEP_ACCOUNTS_MIN, settings.SLEEP_ACCOUNTS_MAX))
+                print("----------------------------------------------------------------------------")
             elif task == "check in":
                 self.home()
                 status = await self.check_in_task()
                 if status:
                     print("----------------------------------------------------------------------------")
                     await asyncio.sleep(random.randint(settings.SLEEP_ACCOUNTS_MIN, settings.SLEEP_ACCOUNTS_MAX))
-            elif task == 'level_up':
-                self.home()
-                ll.info('level up')
-            elif task == "stats":
-                ll.info('stats')
+                print("----------------------------------------------------------------------------")
+            elif task == "enter_tasks":
+                status = await self.enter_tasks()
+                if status:
+                    ll.success(f"Session {self.session_name} | module ENTER TASKS finished")
+                    print("----------------------------------------------------------------------------")
+                    await asyncio.sleep(random.randint(settings.SLEEP_ACCOUNTS_MIN, settings.SLEEP_ACCOUNTS_MAX))
+                print("----------------------------------------------------------------------------")
+
+
+            # elif task == 'level_up':
+            #     self.home()
+            #     ll.info('level up')
+            # elif task == "stats":
+            #     ll.info('stats')
             else:
                 ll.error(f"Don't have such task: {task}")
         else:

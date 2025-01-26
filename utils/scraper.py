@@ -28,7 +28,6 @@ class Scraper():
 
 
     def check_proxy(self):
-        # FORMAT http://{proxy_username}:{proxy_password}@{http_proxy_url}
         self.split_proxy()
         url = 'https://jsonip.com'
         for i in range(1, 6):

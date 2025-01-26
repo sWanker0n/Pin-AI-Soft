@@ -6,12 +6,14 @@ from telegram.pin_ai import PinAi
 from pathlib import Path
 
 
+
 async def choice():
     answers = await questionary.select("Select what you want to do", choices=[
         questionary.Choice("Create Session", 'session'),
         questionary.Choice("Farm PinAI", 'farm'),
-        questionary.Choice("Daily Check-in PinAI", 'check in')
-        # questionary.Choice("Get Statistics", 'statistics'),
+        questionary.Choice("Daily Check-in PinAI", 'check in'),
+        questionary.Choice("Complite enter tasks (one time tasks)", 'enter_tasks'),
+        questionary.Choice("Exit", 'exit')
     ],
     pointer="👉 "
     ).ask_async()
@@ -33,15 +35,20 @@ async def main():
             if answers == 'exit':
                 break
 
-    elif task in ("farm", "check in", "tasks"):
+    elif task in ("farm", "check in", "enter_tasks"):
         folder_path = Path("telegram/sessions")
         sessions = [f.name.split('.')[0] for f in folder_path.iterdir() if f.is_file()]
         for session in sessions:
             acc = PinAi(session)
             await acc.start(task)
-    elif task == 'statistics':
-        ll.info('statistics')
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+
+
+
+
+
